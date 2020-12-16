@@ -1,2 +1,0 @@
-# IC
-Inteligência Computacional
