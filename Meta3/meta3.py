@@ -1,21 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jan  7 01:56:45 2021
-
-@author: isabe
-"""
+import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
-from tensorflow import keras
-from tensorflow.python.keras.models import Sequential
-from tensorflow.python.keras.layers import Dense, Flatten, Conv2D, Dropout, MaxPooling2D
-from IPython.display import SVG
-from keras.utils.vis_utils import model_to_dot
-from keras.utils import plot_model
-import seaborn as sns
+import os
+
 import matplotlib.pyplot as plt
-from PIL import Image
 
 from sklearn.model_selection import train_test_split
 
@@ -29,101 +16,112 @@ from keras.optimizers import Adam
 
 from keras.callbacks import LearningRateScheduler
 from keras.callbacks import EarlyStopping
-
-
-
 import SwarmPackagePy
+from SwarmPackagePy import testFunctions as tf
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import confusion_matrix
 
-IMG_ROWS = 28
-IMG_COLS = 28
-NUM_CLASSES = 10
-TEST_SIZE = 0.2
-RANDOM_STATE = 2018
-#Model
-NO_EPOCHS = 50
-BATCH_SIZE = 128
-train= pd.read_csv("fashion-mnist_train.csv")
-test= pd.read_csv("fashion-mnist_test.csv")
+INPUT_SHAPE = 784
+NUM_CATEGORIES = 10
+
+LABEL_DICT = {
+ 0: "T-shirt/top",
+ 1: "Trouser",
+ 2: "Pullover",
+ 3: "Dress",
+ 4: "Coat",
+ 5: "Sandal",
+ 6: "Shirt",
+ 7: "Sneaker",
+ 8: "Bag",
+ 9: "Ankle boot"
+}
+
+# LOAD THE RAW DATA
+train = pd.read_csv('fashion-mnist_train.csv')
+test = pd.read_csv('fashion-mnist_test.csv')
+
+print(train.shape)
+print(test.shape)
 
 
-print("Fashion MNIST train -  rows:",train.shape[0]," columns:", train.shape[1])
-print("Fashion MNIST test -  rows:",test.shape[0]," columns:", test.shape[1])
 
-train.head(5)
-
+X = train.iloc[:,1:] 
+Y = train.iloc[:,0] 
 
 
-labels = {0 : "T-shirt/top", 1: "Trouser", 2: "Pullover", 3: "Dress", 4: "Coat",
-          5: "Sandal", 6: "Shirt", 7: "Sneaker", 8: "Bag", 9: "Ankle Boot"}
-
-
-def get_classes_distribution(data):
-    # Get the count for each label
-    label_counts = data["label"].value_counts()
-
-    # Get total number of samples
-    total_samples = len(data)
-    
-    # Count the number of items in each class
-    for i in range(len(label_counts)):
-        label = labels[label_counts.index[i]]
-        count = label_counts.values[i]
-        percent = (count / total_samples) * 100
-        print("{:<20s}:   {} or {}%".format(label, count, percent))
-        
-get_classes_distribution(train)
-
-X = train.iloc[:,1:] #taking all but the first row
-Y = train.iloc[:,0] #taking only the first row as this is the label
+x_train , x_test , y_train , y_test = train_test_split(X, Y , test_size=0.1)
 
 class_names = ['T_shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 
+
                'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
-#imagens
+
 plt.figure(figsize=(10, 10))
 for i in range(36):
     plt.subplot(6, 6, i + 1)
     plt.xticks([])
     plt.yticks([])
     plt.grid(False)
-    plt.imshow(X.loc[i].values.reshape((28,28))) #calling the .values of each row
-    label_index = int(Y[i]) #setting as an int as the number is stored as a string
+    plt.imshow(X.loc[i].values.reshape((28,28))) 
+    label_index = int(Y[i]) 
     plt.title(class_names[label_index])
 plt.show()
 
-#grafico de barras por cada classe
-def plot_label_per_class(data):
 
-    f, ax = plt.subplots(1,1, figsize=(12,4))
-    g = sns.countplot(data.label, order = data["label"].value_counts().index)
-    g.set_title("Number of labels for each class")
+x_train = x_train.values.reshape(-1, 28, 28, 1)
+x_test = x_test.values.reshape(-1, 28, 28, 1)
 
-    for p, label in zip(g.patches, data["label"].value_counts().index):
-        g.annotate(labels[label], (p.get_x(), p.get_height()+0.1))
-    plt.show()  
+
+x_train = x_train.astype("float32")/255
+x_test = x_test.astype("float32")/255
+
+
+y_train = to_categorical(y_train, num_classes=10)
+y_test = to_categorical(y_test, num_classes=10)
+
+print(y_train[0])
+print(y_test[0])
+
+
+
+classifier = LogisticRegression(penalty='l2', dual=False, tol=0.001, C=1.0, fit_intercept=True, intercept_scaling=1, class_weight=None, random_state=None, solver='lbfgs', max_iter=100, multi_class='auto', verbose=0, warm_start=False, n_jobs=None, l1_ratio=None)
+classifier.fit(x_train, y_train)
+predicted = classifier.predict(x_test)
+score_first = classifier.score(x_test, y_test)
+print("FIRST SCORE: ", score_first)
+
+def log_class(hyperparamets):
+    classifier = LogisticRegression(penalty='l2', dual=False, tol=(hyperparamets[0]), C=(hyperparamets[1]), fit_intercept=True, intercept_scaling=1, class_weight=None, random_state=None, solver='lbfgs', max_iter=100, multi_class='auto', verbose=0, warm_start=False, n_jobs=None, l1_ratio=None)
+    classifier.fit(x_train, y_train)
+    predicted = classifier.predict(x_test)
+    score = classifier.score(x_test, y_test)
+    loss = (1.0-score)
+    return loss
+
+
+# def accuracy(confusion_matrix):
+#     diagonal_sum = confusion_matrix.trace()
+#     sum_of_all_elements = confusion_matrix.sum()
+
+#     return diagonal_sum / sum_of_all_elements
+
+
+def f(x):
     
-plot_label_per_class(train)
-get_classes_distribution(test)
-plot_label_per_class(test)
+    print("valor de x= ", x)
+    n_particles = x.shape[0]
 
-# data preprocessing
-def data_preprocessing(raw):
-    out_y = keras.utils.to_categorical(raw.label, NUM_CLASSES)
-    num_images = raw.shape[0]
-    x_as_array = raw.values[:,1:]
-    x_shaped_array = x_as_array.reshape(num_images, IMG_ROWS, IMG_COLS, 1)
-    out_x = x_shaped_array / 255
-    return out_x, out_y
+    for i in [range(n_particles)]:
+        valor=x[i]
+          
+    j = log_class(valor)
+    return np.array(j)
 
-
-X, y = data_preprocessing(train)
-X_test, y_test = data_preprocessing(test)
-
-X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE)
+lbb = 0.01
+ubb= 2.0
+dimensions = ( 2 )
+alg = SwarmPackagePy.gsa(n=10, lb = lbb, ub = ubb, function=f,  dimension=dimensions, iteration=10)
 
 
-print("Fashion MNIST train -  rows:",X_train.shape[0]," columns:", X_train.shape[1:4])
-print("Fashion MNIST valid -  rows:",X_val.shape[0]," columns:", X_val.shape[1:4])
-print("Fashion MNIST test -  rows:",X_test.shape[0]," columns:", X_test.shape[1:4])
-#reshape(examples, height, width, channels)
-x_train = train.values.reshape(-1, 28, 28, 3)
-x_test = test.values.reshape(-1, 28, 28, 3)
+um, dois = alg.get_Gbest()
+print ("BEST RESULTS: ",alg.get_Gbest())
